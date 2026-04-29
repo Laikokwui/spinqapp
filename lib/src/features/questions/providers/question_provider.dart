@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/question_model.dart';
+import '../../llm/llm_service.dart';
 
 // Generate a simple ID (in production, use a UUID package)
 String _generateId() => DateTime.now().millisecondsSinceEpoch.toString();
@@ -23,16 +24,16 @@ class QuestionsNotifier extends Notifier<List<Question>> {
   @override
   List<Question> build() => _questions;
 
-  void addQuestion(String text) {
+  Future<void> addQuestion(String text) async {
+    final llmService = LlmService();
+    final generatedTexts = await llmService.generateAnswerOptions(text);
+    
     final newQuestion = Question(
       id: _generateId(),
       text: text,
-      answers: [
-        Answer(id: '1', text: 'Yes'),
-        Answer(id: '2', text: 'No'),
-        Answer(id: '3', text: 'Maybe'),
-        Answer(id: '4', text: 'Not sure'),
-      ],
+      answers: generatedTexts.asMap().entries.map((e) => 
+        Answer(id: e.key.toString(), text: e.value)
+      ).toList(),
     );
     _questions = [..._questions, newQuestion];
     state = _questions;
@@ -65,8 +66,8 @@ class QuestionsManager {
 
   QuestionsManager(this.ref);
 
-  void addQuestion(String text) {
-    ref.read(questionsProvider.notifier).addQuestion(text);
+  Future<void> addQuestion(String text) async {
+    await ref.read(questionsProvider.notifier).addQuestion(text);
   }
 
   void answerQuestion(String questionId, String answerId) {
